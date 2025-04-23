@@ -1,4 +1,5 @@
 from tkinter import Tk, Frame
+from container import Container  # type: ignore
 
 
 class Manager(Tk):
@@ -7,14 +8,18 @@ class Manager(Tk):
         self.title("Caja Registradora version 1.0")
         self.resizable(False, False)
         self.configure(bg="#6CD9E3")
-        self.geometry("800X400+120+20")
+        self.geometry("800x400+120+20")
 
         self.container = Frame(self, bg="#6CD9E3")
         self.container.pack(fill="both", expand=True)
 
         self.frames = {
-            container: None
+            Container: None
         }
+
+        self.load_frames()
+
+        self.show_frame(Container)
 
     def load_frames(self):
         for FrameClass in self.frames.keys():
