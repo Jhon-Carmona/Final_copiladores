@@ -231,3 +231,23 @@ class Ventas(tk.Frame):
         
         label_cambio = tk.Label(venana_pago, text="", bg="#C6D9E3", font="sans 12 bold")
         label_cambio.place(x=100, y=190)
+        
+        def calcular_cambio():
+            try:
+                cantidad_pagada = float(Entry_cantidad_pagada.get())
+                total = self.obtener_total()
+                cambio = cantidad_pagada - total
+                if cambio < 0:
+                    messagebox.showerror("Error", "Cantidad pagada insuficiente")
+                    return
+                label_cambio.config(text=f"Cambio: {cambio:.0f}")
+            except ValueError:
+                messagebox.showerror("Error", "Cantidad pagada no válida")
+                
+        boton_calcular = tk.Button(venana_pago, text="Calcular cambio", bg="#dddddd", font="sans 12 bold", command=calcular_cambio)
+        boton_calcular.place(x=100, y=240, width=240, height=40)
+        
+        boton_pagar = tk.Button(venana_pago, text="Pagar", bg="#dddddd", font="sans 12 bold", command=lambda:self.pagar(venana_pago, Entry_cantidad_pagada,label_cambio))
+        boton_pagar.place(x=100, y=240, width=300, height=40)
+        
+    def pagar(self, ventana_pago, Entry_cantidad_pagada,label_cambio):
