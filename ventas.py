@@ -179,4 +179,55 @@ class Ventas(tk.Frame):
                 self.entry_valor.config(state="normal")
                 self.entry_valor.delete(0, tk.END)
                 self.entry_valor.config(state="readonly")
-                self.entry_valor.delete(0, tk.END)
+                self.entry_cantidad.delete(0, tk.END)
+                
+                self.actualizar_total()
+            except ValueError:
+                messagebox.showerror("Error", "Cantidad o precio no válidos")
+            else:
+                messagebox.showerror(
+                    "Error", "Debe completar todos los campos")
+    def verificar_stock(self, nombre_producto, cantidad):
+        try:
+            conn = sqlite3.connect(self.db_name)
+            c = conn.cursor()
+            c.execute("SELECT stock FROM inventario WHERE nombre = ?",
+                      (nombre_producto,))
+            stock = c.fetchone()
+            if stock and stock[0] >= cantidad:
+                return True
+            else:
+                return False
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"Error al verificar el stock: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def obtener_total(self):
+        total = 0.0
+        for child in self.tree.get_children():
+            subtotal = float(self.tree.item(child, "values")[3])
+            total += subtotal
+        return total
+    
+    def abrir_ventana_pago(self):
+        if not self.tree.get_children():
+            messagebox.showerror("Error", "No hay artículos para pagar")
+            return
+        venana_pago = Toplevel(self)
+        venana_pago.title("Pagar")
+        venana_pago.geometry("400x300")
+        venana_pago.config(bg="#C6D9E3")
+        venana_pago.resizable(0, 0)
+        
+        Label_total = tk.Label(venana_pago,bg="#C6D9E3", text=f"Total a pagar: {self.obtener_total}", font="sans 20 bold")
+        Label_total.place(x= 70, y=20, width=300, height=50)
+        
+        label_cantidad_pagada = tk.Label(venana_pago, text="Cantidad pagada: ", bg="#C6D9E3", font="sans 12 bold")
+        label_cantidad_pagada.place(x=100, y=90)
+        Entry_cantidad_pagada = ttk.Entry(venana_pago, font="sans 12 bold")
+        Entry_cantidad_pagada.place(x=100, y=130)
+        
+        label_cambio = tk.Label(venana_pago, text="", bg="#C6D9E3", font="sans 12 bold")
+        label_cambio.place(x=100, y=190)
