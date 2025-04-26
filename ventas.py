@@ -142,11 +142,13 @@ class Ventas(tk.Frame):
                 self.entry_valor.delete(0, tk.END)
                 self.entry_valor.insert(0, precio[0])
                 self.entry_valor.config(state="readonly")
+                print(f"Precio actualizado: {precio[0]}")
             else:
                 self.entry_valor.config(state="normal")
                 self.entry_valor.delete(0, tk.END)
                 self.entry_valor.insert(0, "Precio no disponible")
                 self.entry_valor.config(state="readonly")
+                print("Precio no disponible")
         except sqlite3.Error as e:
             messagebox.showerror("Error", f"Error al obtener el precio: {e}")
         finally:
@@ -156,13 +158,17 @@ class Ventas(tk.Frame):
         total = 0.0
         for child in self.tree.get_children():
             subtotal = float(self.tree.item(child, "values")[3])
-            total + subtotal
+            total += subtotal
         self.label_suma_total.config(text=f"Total a pagar: COP {total:.0f}")
 
     def registrar(self):
-        producto = self.entry_nombre.get()
-        precio = self.entry_valor.get()
-        cantidad = self.entry_cantidad.get()
+        producto = self.entry_nombre.get().strip()
+        precio = self.entry_valor.get().strip()
+        cantidad = self.entry_cantidad.get().strip()
+
+        print(f"Producto (antes del if): '{producto}'")  # Añade esta línea
+        print(f"Precio (antes del if): '{precio}'")    # Añade esta línea
+        print(f"Cantidad (antes del if): '{cantidad}'")  # Añade esta línea
 
         if producto and precio and cantidad:
             try:
@@ -174,21 +180,22 @@ class Ventas(tk.Frame):
                 precio = float(precio)
                 subtotal = cantidad * precio
 
-                self.tree.insert("", "end", values={
-                                 producto, f"precio:.0f", cantidad, f"subtotal: .0f"})
+                self.tree.insert("", "end", values=(
+                    producto, f"{precio:.0f}", cantidad, f"{subtotal:.0f}"))
 
                 self.entry_nombre.set("")
                 self.entry_valor.config(state="normal")
                 self.entry_valor.delete(0, tk.END)
                 self.entry_valor.config(state="readonly")
                 self.entry_cantidad.delete(0, tk.END)
-                
+
                 self.actualizar_total()
             except ValueError:
                 messagebox.showerror("Error", "Cantidad o precio no válidos")
-            else:
-                messagebox.showerror(
-                    "Error", "Debe completar todos los campos")
+        else:
+            messagebox.showerror(
+                "Error", "Debe completar todos los campos")
+
     def verificar_stock(self, nombre_producto, cantidad):
         try:
             conn = sqlite3.connect(self.db_name)
@@ -205,14 +212,14 @@ class Ventas(tk.Frame):
             return False
         finally:
             conn.close()
-    
+
     def obtener_total(self):
         total = 0.0
         for child in self.tree.get_children():
             subtotal = float(self.tree.item(child, "values")[3])
-            total += subtotal
+            total + subtotal
         return total
-    
+
     def abrir_ventana_pago(self):
         if not self.tree.get_children():
             messagebox.showerror("Error", "No hay artículos para pagar")
@@ -222,37 +229,46 @@ class Ventas(tk.Frame):
         venana_pago.geometry("400x300")
         venana_pago.config(bg="#C6D9E3")
         venana_pago.resizable(0, 0)
-        
-        Label_total = tk.Label(venana_pago,bg="#C6D9E3", text=f"Total a pagar: {self.obtener_total}", font="sans 20 bold")
-        Label_total.place(x= 70, y=20, width=300, height=50)
-        
-        label_cantidad_pagada = tk.Label(venana_pago, text="Cantidad pagada: ", bg="#C6D9E3", font="sans 12 bold")
+
+        # Corrección 1: Llama al método obtener_total() para obtener el valor
+        Label_total = tk.Label(
+            venana_pago, bg="#C6D9E3", text=f"Total a pagar: COP {self.obtener_total():.0f}", font="sans 20 bold")
+        Label_total.place(x=70, y=20, width=300, height=50)
+
+        label_cantidad_pagada = tk.Label(
+            venana_pago, text="Cantidad pagada: ", bg="#C6D9E3", font="sans 12 bold")
         label_cantidad_pagada.place(x=100, y=90)
         Entry_cantidad_pagada = ttk.Entry(venana_pago, font="sans 12 bold")
         Entry_cantidad_pagada.place(x=100, y=130)
-        
-        label_cambio = tk.Label(venana_pago, text="", bg="#C6D9E3", font="sans 12 bold")
+
+        label_cambio = tk.Label(venana_pago, text="",
+                                bg="#C6D9E3", font="sans 12 bold")
         label_cambio.place(x=100, y=190)
-        
+
         def calcular_cambio():
             try:
                 cantidad_pagada = float(Entry_cantidad_pagada.get())
                 total = self.obtener_total()
                 cambio = cantidad_pagada - total
                 if cambio < 0:
-                    messagebox.showerror("Error", "Cantidad pagada insuficiente")
+                    messagebox.showerror(
+                        "Error", "Cantidad pagada insuficiente")
                     return
                 label_cambio.config(text=f"Cambio: {cambio:.0f}")
             except ValueError:
                 messagebox.showerror("Error", "Cantidad pagada no válida")
-                
-        boton_calcular = tk.Button(venana_pago, text="Calcular cambio", bg="#dddddd", font="sans 12 bold", command=calcular_cambio)
-        boton_calcular.place(x=100, y=240, width=240, height=40)
-        
-        boton_pagar = tk.Button(venana_pago, text="Pagar", bg="#dddddd", font="sans 12 bold", command=lambda:self.pagar(venana_pago, Entry_cantidad_pagada,label_cambio))
-        boton_pagar.place(x=100, y=240, width=300, height=40)
-        
-    def pagar(self, ventana_pago, Entry_cantidad_pagada,label_cambio):
+
+        # Corrección 2: Asegúrate de que ambos botones tengan coordenadas 'y' diferentes
+        boton_calcular = tk.Button(venana_pago, text="Calcular vuelto",  # Corregí la ortografía
+                                   bg="#dddddd", font="sans 12 bold", command=calcular_cambio)
+        boton_calcular.place(x=100, y=200, width=240, height=40)
+
+        boton_pagar = tk.Button(venana_pago, text="Pagar", bg="#dddddd", font="sans 12 bold",
+                                command=lambda: self.pagar(venana_pago, Entry_cantidad_pagada, label_cambio))
+        # Asegúrate de que el ancho sea consistente con el otro botón
+        boton_pagar.place(x=100, y=250, width=240, height=40)
+
+    def pagar(self, ventana_pago, Entry_cantidad_pagada, label_cambio):
         try:
             cantidad_pagada = float(Entry_cantidad_pagada.get())
             total = self.obtener_total()
@@ -260,41 +276,44 @@ class Ventas(tk.Frame):
             if cambio < 0:
                 messagebox.showerror("Error", "Cantidad pagada insuficiente")
                 return
-            
+
             coon = sqlite3.connect(self.db_name)
             c = coon.cursor()
             try:
                 for child in self.tree.get_children():
-                    item = self.tree.item(child,"values")
+                    item = self.tree.item(child, "values")
                     nombre_producto = item[0]
                     cantidad_vendida = int(item[2])
                     if not self.verificar_stock(nombre_producto, cantidad_vendida):
-                        messagebox.showerror("Error", f" Stock insuficinete para el producto: {nombre_producto}")
+                        messagebox.showerror(
+                            "Error", f" Stock insuficinete para el producto: {nombre_producto}")
                         return
-                    c.execute("INSERT into ventas (factura, nombre_articulo, valor_articulo, cantidad, subtotal) VALUES (?,?,?,?,?)", 
+                    c.execute("INSERT into ventas (factura, nombre_articulo, valor_articulo, cantidad, subtotal) VALUES (?,?,?,?,?)",
                               (self.numero_factura_actual, nombre_producto, float(item[1]), cantidad_vendida, float(item[3])))
-                    
-                    c.execute("UPDATE inventario SET stock - stock -? WHERE nombre = ?", (cantidad_vendida, nombre_producto))
-                    
+
+                    c.execute("UPDATE inventario SET stock - stock -? WHERE nombre = ?",
+                              (cantidad_vendida, nombre_producto))
+
                 coon.commit()
                 messagebox.showinfo("Exito", "Venta registrada exitosamente")
-                
+
                 self.numero_factura_actual += 1
                 self.mostrar_numero_factura()
-                
+
                 for child in self.tree.get_children():
                     self.tree.delete(child)
                 self.label_suma_total.config(text="Total a pagar: COP 0")
-                
+
                 ventana_pago.destroy()
             except sqlite3.Error as e:
                 coon.rollback()
-                messagebox.showerror("Error", f"Error al registrar la venta: {e}")
+                messagebox.showerror(
+                    "Error", f"Error al registrar la venta: {e}")
             finally:
                 coon.close()
         except ValueError:
             messagebox.showerror("Error", "Cantidad pagada no valida")
-            
+
     def obtener_numero_factura_actual(self):
         conn = sqlite3.connect(self.db_name)
         c = conn.cursor()
@@ -302,7 +321,7 @@ class Ventas(tk.Frame):
             c.execute("SELECT MAX(factura) FROM ventas")
             max_factura = c.fetchone()[0]
             if max_factura:
-                return max_factura +1
+                return max_factura + 1
             else:
                 return 1
         except sqlite3.Error as e:
@@ -310,48 +329,63 @@ class Ventas(tk.Frame):
             return 1
         finally:
             conn.close()
-    
+
     def mostrar_numero_factura(self):
         self.numero_factura.set(self.numero_factura_actual)
-        
+
     def abrir_ventana_factura(self):
-        ventana_facturas= Toplevel
+        ventana_facturas = Toplevel
         ventana_facturas.title("Facturas")
         ventana_facturas.geometry("800x500")
         ventana_facturas.config(bg="#C6D9E3")
         ventana_facturas.resizable(False, False)
-        
-        facturas = Label(ventana_facturas, bg="#C6D9E3", Text="Facturas registradas", font="sans 36 bold")
+
+        facturas = Label(ventana_facturas, bg="#C6D9E3",
+                         Text="Facturas registradas", font="sans 36 bold")
         facturas.place(x=150, y=15)
-        
+
         treFrame = tk.Frame(ventana_facturas, bg="#C6D9E3")
         treFrame.place(x=10, y=100, width=780, height=380)
-        
-        
+
         scrol_y = ttk.Scrollbar(treFrame, orient=VERTICAL)
         scrol_y.pack(side=RIGHT, fill=Y)  # Corrección: Usar la constante Y
 
         scrol_x = ttk.Scrollbar(treFrame, orient=HORIZONTAL)
         scrol_x.pack(side=BOTTOM, fill=X)  # Corrección: Usar la constante X
 
-        self.tree = ttk.Treeview(treFrame, columns=(
+        tree_facturas = ttk.Treeview(treFrame, columns=(
             "ID", "Factura", "Producto", "Precio", "Cantidad", "Subtotal"), show="headings", height=10,
-            yscrollcommand=scrol_y.set, xscrollcommand=scrol_x.set)  # Corrección: Usar '='
+            yscrollcommand=scrol_y.set, xscrollcommand=scrol_x.set)
 
-        scrol_y.config(command=self.tree.yview)
-        # Corrección: Usar .xview para la barra horizontal
-        scrol_x.config(command=self.tree.xview)
+        scrol_y.config(command=tree_facturas.yview)
+        scrol_x.config(command=tree_facturas.xview)
 
-        self.tree.heading("#1", text="ID")
-        self.tree.heading("#2", text="Factura")
-        self.tree.heading("#3", text="Producto")
-        self.tree.heading("#4", text="Precio")
-        self.tree.heading("#5", text="Cantidad")
-        self.tree.heading("#4", text="Subtotal")
+        tree_facturas.heading("#1", text="ID")
+        tree_facturas.heading("#2", text="Factura")
+        tree_facturas.heading("#3", text="Producto")
+        tree_facturas.heading("#4", text="Precio")
+        tree_facturas.heading("#5", text="Cantidad")
+        tree_facturas.heading("#4", text="Subtotal")
 
-        self.tree.column("#1", anchor="center")
-        self.tree.column("#2", anchor="center")
-        self.tree.column("#3", anchor="center")
-        self.tree.column("#4", anchor="center")
+        tree_facturas.column("ID", width=70, anchor="center")
+        tree_facturas.column("Factura", width=100, anchor="center")
+        tree_facturas.column("Producto", width=200, anchor="center")
+        tree_facturas.column("Precio", width=130, anchor="center")
+        tree_facturas.column("Cantidad", width=130, anchor="center")
+        self.tree.column("Subtotal", width=130, anchor="center")
 
-        self.tree.pack(expand=True, fill=BOTH)
+        tree_facturas.pack(expand=True, fill=BOTH)
+
+        self.cargar_facturas(tree_facturas)
+
+    def tree_facturas(self, tree):
+        try:
+            conn = sqlite3.connect(self.db_name)
+            c = conn.cursor()
+            c.execute("SELECT * FROM ventas")
+            facturas = c.fetchall()
+            for factura in facturas:
+                tree.insert("", "end", values=factura)
+            conn.closet()
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"error al cargar las facturas: {e}")
