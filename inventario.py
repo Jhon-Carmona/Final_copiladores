@@ -1,4 +1,4 @@
-# Importa módulos de tkinter para crear interfaces gráficas
+# Importa módulos de tkinter y sqlite3
 import sqlite3
 from tkinter import *
 import tkinter as tk
@@ -9,12 +9,12 @@ class Inventario(tk.Frame):
 
     def __init__(self, padre):
         super().__init__(padre)
-        self.conn = sqlite3.connect(self.db_name)  # Conecta a la base de datos
-        self.cursor = self.conn.cursor()  # Crea un cursor para ejecutar comandos SQL
-        self.widgets()  # Llama al método que crea los widgets
+        self.conn = sqlite3.connect(self.db_name)  # Conexión a la base de datos
+        self.cursor = self.conn.cursor()
+        self.widgets()
 
     def widgets(self):
-        """Método que configura todos los widgets (componentes visuales)"""
+        """Crea la interfaz gráfica de inventario"""
 
         frame1 = tk.Frame(self, bg="#dddddd", highlightbackground="gray", highlightthickness=1)
         frame1.place(x=0, y=0, width=1100, height=100)
@@ -29,6 +29,7 @@ class Inventario(tk.Frame):
         labelframe = LabelFrame(frame2, text="Productos", font=("sans", 22, "bold"), bg="#C6D9E3")
         labelframe.place(x=20, y=30, width=400, height=500)
 
+        # Entradas de producto
         lblbnombre = Label(labelframe, text="Nombre", font=("sans", 14, "bold"), bg="#C6D9E3")
         lblbnombre.place(x=10, y=20)
         self.nombre = ttk.Entry(labelframe, font=("sans", 14))
@@ -54,6 +55,7 @@ class Inventario(tk.Frame):
         self.stock = ttk.Entry(labelframe, font=("sans", 14))
         self.stock.place(x=140, y=260, width=240, height=40)
 
+        # Botones
         boton_agregar = tk.Button(labelframe, text="Ingresar", font=("sans", 14, "bold"),
                                   bg="#dddddd", command=self.registrar)
         boton_agregar.place(x=80, y=340, width=240, height=40)
@@ -62,6 +64,7 @@ class Inventario(tk.Frame):
                                  bg="#dddddd", command=self.editar_producto)
         boton_editar.place(x=80, y=400, width=240, height=40)
 
+        # Tabla
         treFrame = Frame(frame2, bg="white")
         treFrame.place(x=440, y=50, width=620, height=400)
 
@@ -116,23 +119,32 @@ class Inventario(tk.Frame):
             float(costo)
             int(stock)
         except ValueError:
+            messagebox.showerror("Error", "Precio, costo o stock inválido")
             return False
         return True
 
     def mostrar(self):
         """Carga productos en la tabla"""
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
         consulta = "SELECT * FROM inventario ORDER BY id DESC"
         result = self.eje_consulta(consulta)
         for element in result:
-            precio_cop = "{:,.0f}".format(element[3]) if element[3] else ""
-            costo_cop = "{:,.0f}".format(element[4]) if element[4] else ""
+            try:
+                precio = float(element[3])
+                costo = float(element[4])
+                precio_formateado = "{:,.0f}".format(precio)
+                costo_formateado = "{:,.0f}".format(costo)
+            except (ValueError, TypeError):
+                precio_formateado = element[3]
+                costo_formateado = element[4]
+
             self.tree.insert("", 0, text=element[0], values=(
-                element[0], element[1], element[2], precio_cop, costo_cop, element[5]))
+                element[0], element[1], element[2], precio_formateado, costo_formateado, element[5]))
 
     def actualizar_inventario(self):
-        """Actualiza la visualización del inventario"""
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        """Actualiza la tabla"""
         self.mostrar()
         messagebox.showinfo("Actualización", "Inventario actualizado correctamente")
 
@@ -146,7 +158,7 @@ class Inventario(tk.Frame):
 
         if self.validacion(nombre, prov, precio, costo, stock):
             try:
-                consulta = "INSERT INTO inventario VALUES (NULL, ?, ?, ?, ?, ?)"
+                consulta = "INSERT INTO inventario (nombre, proveedor, precio, costo, stock) VALUES (?, ?, ?, ?, ?)"
                 parametros = (nombre, prov, float(precio), float(costo), int(stock))
                 self.eje_consulta(consulta, parametros)
                 self.actualizar_inventario()
@@ -156,7 +168,7 @@ class Inventario(tk.Frame):
                 self.costo.delete(0, END)
                 self.stock.delete(0, END)
             except Exception as e:
-                messagebox.showerror("Error", f"Error al registrar el producto: {e}")
+                messagebox.showerror("Error", f"Error al registrar: {e}")
 
     def editar_producto(self):
         """Edita el producto seleccionado"""
@@ -164,8 +176,8 @@ class Inventario(tk.Frame):
         if not seleccion:
             messagebox.showwarning("Advertencia", "Seleccione un producto para editar")
             return
-        item_id = self.tree.item(seleccion)["values"][0]
-        item_values = self.tree.item(seleccion)["values"]
+        item = self.tree.item(seleccion)
+        valores = item['values']
 
         ventana_editar = Toplevel(self)
         ventana_editar.title("Editar Producto")
@@ -173,30 +185,27 @@ class Inventario(tk.Frame):
         ventana_editar.config(bg="#C6D9E3")
 
         labels = ["Nombre", "Proveedor", "Precio", "Costo", "Stock"]
-        entries = []
+        entradas = []
 
-        for idx, label in enumerate(labels):
-            lbl = Label(ventana_editar, text=label, bg="#C6D9E3")
-            lbl.grid(row=idx, column=0, padx=10, pady=10)
+        for i, texto in enumerate(labels):
+            Label(ventana_editar, text=texto, bg="#C6D9E3").grid(row=i, column=0, padx=10, pady=10)
             entry = Entry(ventana_editar, width=30)
-            entry.grid(row=idx, column=1, padx=10, pady=10)
-            entry.insert(0, item_values[idx+1] if idx+1 < len(item_values) else "")
-            entries.append(entry)
+            entry.grid(row=i, column=1, padx=10, pady=10)
+            entry.insert(0, valores[i+1])
+            entradas.append(entry)
 
         def guardar_cambios():
-            nuevos_valores = [entry.get() for entry in entries]
-            if not all(nuevos_valores):
-                messagebox.showwarning("Advertencia", "Rellene todos los campos.")
+            nuevos = [e.get() for e in entradas]
+            if not all(nuevos):
+                messagebox.showerror("Error", "Todos los campos son obligatorios")
                 return
             try:
                 consulta = "UPDATE inventario SET nombre=?, proveedor=?, precio=?, costo=?, stock=? WHERE id=?"
-                parametros = (*nuevos_valores, item_id)
+                parametros = (nuevos[0], nuevos[1], float(nuevos[2].replace(",", "")), float(nuevos[3].replace(",", "")), int(nuevos[4]), valores[0])
                 self.eje_consulta(consulta, parametros)
                 self.actualizar_inventario()
                 ventana_editar.destroy()
             except Exception as e:
-                messagebox.showerror("Error", f"Error al actualizar el producto: {e}")
+                messagebox.showerror("Error", f"Error al actualizar: {e}")
 
-        btn_guardar = Button(ventana_editar, text="Guardar cambios",
-                             font="sans 14 bold", command=guardar_cambios)
-        btn_guardar.place(x=80, y=320, width=240, height=40)
+        Button(ventana_editar, text="Guardar cambios", command=guardar_cambios, font=("sans", 14, "bold")).place(x=80, y=320, width=240, height=40)
