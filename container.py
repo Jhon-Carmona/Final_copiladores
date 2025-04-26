@@ -28,6 +28,11 @@ class Container(tk.Frame):
         frame.pack(fill="both", expand=True)  # Expande el frame para que ocupe todo el espacio
         top_level.geometry("1100x650+120+20")  # Establece el tamaño de la ventana secundaria
         top_level.resizable(False, False)  # Evita que la ventana sea redimensionada
+        
+        top_level.transient(self.master)  # Establece la ventana secundaria como modal (no permite interactuar con la ventana principal)
+        top_level.grab_set()
+        top_level.focus_set()
+        top_level.lift()
 
     def ventas(self):
         """

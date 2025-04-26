@@ -1,12 +1,17 @@
+import sqlite3
 from tkinter import *
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 
 class Inventario(tk.Frame):
+    db_name = "database.db"  # Nombre de la base de datos
     def __init__(self, padre):
         super().__init__(padre)
         # self.pack() # No es necesario si usas place en el Toplevel
+        self.conn = sqlite3.connect(self.db_name)  # Conecta a la base de datos
+        self.cursor = self.conn.cursor()  # Crea un cursor para ejecutar comandos SQL
+        
         self.widgets()
 
     def widgets(self):
@@ -169,13 +174,12 @@ class Inventario(tk.Frame):
         self.stock.place(x=140, y=260, width=240, height=40)
 
         # Botón para agregar un nuevo producto al inventario
-        boton_agregar = tk.Button(
-            labelframe, text="Ingresar", font=("sans", 14, "bold"), bg="#dddddd")
+        boton_agregar = tk.Button(labelframe, text="Ingresar", font=("sans", 14, "bold"), bg="#dddddd", command= self.registrar)
         boton_agregar.place(x=80, y=340, width=240, height=40)
 
         # Botón para editar un producto ya existente en el inventario
         boton_editar = tk.Button(
-            labelframe, text="Editar", font=("sans", 14, "bold"), bg="#dddddd")
+            labelframe, text="Editar", font=("sans", 14, "bold"), bg="#dddddd" command=self.editar_producto)
         boton_editar.place(x=80, y=400, width=240, height=40)
 
         # Sección de tabla para mostrar los productos en el inventario
@@ -214,3 +218,150 @@ class Inventario(tk.Frame):
         self.tree.column("PRECIO", width=100, anchor="center")
         self.tree.column("COSTO", width=100, anchor="center")
         self.tree.column("STOCK", width=70, anchor="center")
+        
+        self.mostrar()
+        
+        btn_actualizar = Button(frame2, text="Actualizar", font=("sans", 14, "bold"), bg="#dddddd" command=self.actualizar_inventario)
+        btn_actualizar.place(x=440, y=480, width=260, height=50)
+        
+    def eje_consulta(self, consulta, parametros=()):
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            result = cursor.execute(consulta, parametros)
+            conn.commit()
+        return result
+    
+    def validacion(self, nombre, pro, precio, costo, stock):
+        if not(nombre and pro and precio and costo and stock):
+            messagebox.showerror("Error", "Todos los campos son obligatorios")
+            return False
+        try:
+            float(precio)
+            float(costo)
+            int(stock)
+        except ValueError:
+            return False
+        return True
+    
+    def mostrar(self):
+        consulta = "SELECT * FROM inventario ORDER by id DESC"
+        result = self.eje_consulta(consulta)
+        for element in result:
+            try:
+                precio_cop = "{:,.0f}".flat(element[3]) if element[3] else ""
+                costo_cop = "{:,.0f}".flat(element[4]) if element[4] else ""
+            except ValueError:
+                precio_cop = element[3]
+                costo_cop = element[4]
+            self.tre.insert("", 0, text=element[0], values=(element[0], element[1],element[2], precio_cop, costo_cop, element[5]))
+             
+    def actualizar_inventario(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        self.mostrar()
+        
+        messagebox.showinfo("Actualización", "Inventario actualizado correctamente")
+    
+    def registrar(self):
+        result =self.tre.get_children()
+        for i in result:
+            self.tre.delete(i)
+            nombre = self.nombre.get()
+            prov = self.proveedor.get()
+            precio = self.precio.get()
+            costo = self.costo.get()
+            stock = self.stock.get()
+            if self.validacion(nombre, prov, precio, costo, stock):
+                try:
+                    consulta = "INSERT INTO inventario VALUES (?, ?, ?, ?, ?)"
+                    parametros = (None, nombre, prov, precio, costo, stock)
+                    self.eje_consulta(consulta, parametros)
+                    self.mostrar()
+                    self.nombre.delete(0, END)
+                    self.proveedor.delete(0, END)
+                    self.precio.delete(0, END)
+                    self.costo.delete(0, END)
+                    self.stock.delete(0, END)
+                except Exception as e:
+                    messagebox.showerror(title ="Error", message= f"Error al registrar el producto: {e}")
+            else:
+                messagebox.showwarning(title="Error", message="Error en la validación de datos")
+                self.mostrar()
+                
+                
+    def editar_producto(self):
+        seleccion = self.tree.selection()
+        if not seleccion:
+            messagebox.showwarning("Advertencia", "Seleccione un producto para editar")
+            return
+        item_id = self.tre.item(seleccion)["Text"]
+        item_values = self.tre.item(seleccion)["values"]
+        
+        ventana_editar = Toplevel(self)
+        ventana_editar.title("Editar Producto")
+        ventana_editar.geometry("400x400")
+        ventana_editar.config(bg="#C6D9E3")
+        
+        lbl_nombre = Label(ventana_editar, text="Nombre", bg="#C6D9E3")
+        lbl_nombre.grid(row=0, column=0, padx=10, pady=10)
+        entry_nombre = Entry(ventana_editar, width=30)
+        entry_nombre.grid(row=0, column=1, padx=10, pady=10)
+        entry_nombre.insert(0, item_values[1])
+        
+        
+        lbl_proveedor = Label(ventana_editar, text="proveedor", bg="#C6D9E3")
+        lbl_proveedor.grid(row=1, column=0, padx=10, pady=10)
+        entry_proveedor = Entry(ventana_editar, width=30)
+        entry_proveedor.grid(row=1, column=1, padx=10, pady=10)
+        entry_proveedor.insert(0, item_values[2])
+        
+        
+        
+        lbl_precio = Label(ventana_editar, text="Precio", bg="#C6D9E3")
+        lbl_precio.grid(row=2, column=0, padx=10, pady=10)
+        entry_precio = Entry(ventana_editar, width=30)
+        entry_precio.grid(row=2, column=1, padx=10, pady=10)
+        entry_precio.insert(0, item_values[3].split()[0].replace(",", ""))
+       
+        
+        
+        lbl_costo = Label(ventana_editar, text="Costo", bg="#C6D9E3")
+        lbl_costo.grid(row=3, column=0, padx=10, pady=10)
+        entry_costo = Entry(ventana_editar, width=30)
+        entry_costo.grid(row=3, column=1, padx=10, pady=10)
+        entry_costo.insert(0, item_values[4].split()[0].replace(",", ""))
+        
+        lbl_stock = Label(ventana_editar, text="Stock", bg="#C6D9E3")
+        lbl_stock.grid(row=4, column=0, padx=10, pady=10)
+        entry_stock = Entry(ventana_editar, width=30)
+        entry_stock.grid(row=4, column=1, padx=10, pady=10)
+        entry_stock.insert(0, item_values[5])
+        
+        def guardar_cambios():
+            nombre = entry_nombre.get()
+            proveedor = entry_proveedor.get()
+            precio = entry_precio.get()
+            costo = entry_costo.get()
+            stock = entry_stock.get()
+
+            if not (nombre and proveedor and precio and costo and stock):
+                messagebox.showwarning("Guardar cambios", "Rellene todos los campos.")
+                return
+
+            try:
+                precio = float(precio.replace(",", "."))
+                costo = float(costo.replace(",", ""))
+            except ValueError:
+                messagebox.showwarning("Guardar cambios", "Ingrese valores numéricos válidos para precio y costo.")
+                return
+            consulta = "UPDATE inventario SET nombre=?, proveedor=?, precio=?, costo=?, stock=? WHERE id=?"
+            parametros = (nombre, proveedor, precio, costo, stock, item_id)
+            self.eje_consulta(consulta, parametros)
+
+            self.actualizar_inventario()
+
+            ventana_editar.destroy()
+
+        btn_guardar = Button(ventana_editar, text="Guardar cambios", font="sans 14 bold", command=guardar_cambios)
+        btn_guardar.place(x=80, y=250, width=240, height=40)
+
